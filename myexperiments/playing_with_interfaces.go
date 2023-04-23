@@ -40,8 +40,13 @@ func describe(s shape) {
 }
 
 func main() {
-	s := square{5.0}
-	s2 := circle{10.0}
-	describe(s)
-	describe(s2)
+	s := []shape{
+		square{5.0},
+		circle{10.0},
+		square{3.0},
+		circle{4.7},
+	}
+	for _, v := range s {
+		describe(v)
+	}
 }
