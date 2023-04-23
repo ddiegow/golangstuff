@@ -1,0 +1,32 @@
+Important note:
+
+Channel sends and channel reads are blocking operations. If a thread sends on a channel, it will not continue until the channel has been read by another thread.
+When a thread reads from a channel, it will not continue until another thread has sent data through the channel.
+
+EXAMPLE OF SEND BLOCKING UNTIL CHANNEL HAS BEEN READ
+
+goroutine1              goroutine2
+
+fdljkaflasdk            kljfsdakljfdsakl
+kjldfsk;fs;kld          klasdflkdfsalkdfaslk
+adsfkjlak;jlf           c <- "hi"
+kjlfsgkjlgfdskl         WAIT
+KJ;FDSALKFDSAKJ         WAIT
+JKLFDSLK;JDFSLJK        WAIT
+msg := <- c             WAIT
+;JKFDSALJKFDSJL         ;LKFDASLKFDLJKS
+
+EXAMPLE OF READ BLOCKING UNTIL CHANNEL HAS RECEIVED INPUT
+
+goroutine1              goroutine2
+
+msg := <- c             kljfsdakljfdsakl
+WAIT                    klasdflkdfsalkdfaslk
+WAIT                    adfslkjdsafjkdfsaljfsd
+WAIT                    lafsdjlksdfljkfdasjl
+WAIT                    c <- "hi"
+JKLFDSLK;JDFSLJK        fsdasdaasd
+afdsfsadfda             fasdsdffdasfads
+;JKFDSALJKFDSJL         ;LKFDASLKFDLJKS
+
+
