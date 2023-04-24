@@ -24,16 +24,20 @@ func Crawl(url string, depth int, fetcher Fetcher, safePool *SafePool) {
 		return
 	}
 	body, urls, err := fetcher.Fetch(url) // fetch the urls
+	safePool.mu.Lock()                    // lock the pool so there are no conflicts
 	if err != nil {                       // if there was an error
-		fmt.Println(err)                // print it out
-		safePool.processed[url] = depth // add the url to the processed list
-		return                          // we're done
+		if safePool.processed[url] == 0 {
+			fmt.Println(err)                // print it out
+			safePool.processed[url] = depth // add the url to the processed list
+		}
+
+		safePool.mu.Unlock()
+		return // we're done
 	}
 	fmt.Printf("found: %s %q\n", url, body) // no error, so print out the url
 	safePool.processed[url] = depth         // add it to the processed list
 
 	var wg sync.WaitGroup    // will use to wait for other goroutines to finish. if we don't use it, the program would only run the Crawl function once and exit
-	safePool.mu.Lock()       // lock the pool so there are no conflicts
 	for _, u := range urls { // process the urls
 		if safePool.processed[u] == 0 { // if we haven't processed the url yet
 			wg.Add(1)           // add a task
@@ -43,8 +47,8 @@ func Crawl(url string, depth int, fetcher Fetcher, safePool *SafePool) {
 			}(u)
 		}
 	}
-	safePool.mu.Unlock() // unlock before waiting, so other goroutines can make use of the pool
-	wg.Wait()            // wait for other routines to finish
+	safePool.mu.Unlock()
+	wg.Wait() // wait for other routines to finish
 }
 
 func main() {
