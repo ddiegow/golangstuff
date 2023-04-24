@@ -1,7 +1,6 @@
 package main
 
-// TODO: rewrite to use worker-coordinator system using channels
-// TODO: figure out that found: https://golang.org/cmd/ "" output
+// TODO: someday make a version that doesn't use a shared pool between the goroutines, something using channels.
 import (
 	"fmt"
 	"sync"
