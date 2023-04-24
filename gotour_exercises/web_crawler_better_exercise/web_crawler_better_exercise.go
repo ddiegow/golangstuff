@@ -1,6 +1,6 @@
 package main
 
-// TODO: someday make a version that doesn't use a shared pool between the goroutines, something using channels.
+// Improved with inspiration from Harvard 6.824 lecture
 import (
 	"fmt"
 	"sync"
@@ -16,6 +16,8 @@ type SafePool struct {
 	fetched map[string]bool
 }
 
+// The only time we need to lock and unlock is when working on the state that is shared by all threads
+// Putting the routine in a method is cleaner than putting it in the Crawl function, though it would work as well
 func (safePool *SafePool) processState(url string) bool {
 	safePool.mu.Lock()               // look the pool so there are no conflicts
 	defer safePool.mu.Unlock()       // unlock when we exit the function
