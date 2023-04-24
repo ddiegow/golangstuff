@@ -13,61 +13,44 @@ type Fetcher interface {
 	Fetch(url string) (body string, urls []string, err error)
 }
 type SafePool struct {
-	mu    sync.Mutex
-	pool  map[string]int
-	found map[string]int
-}
-
-func worker(safePool *SafePool, fetcher Fetcher) { // first thread
-	for { // infinite loop
-
-		safePool.mu.Lock()
-		if len(safePool.pool) == 0 {
-			safePool.mu.Unlock()
-			break
-		}
-
-		var theUrl string
-		for k := range safePool.pool {
-			theUrl = k // get the first key
-			break
-		}
-		theDepth := safePool.pool[theUrl]
-		delete(safePool.pool, theUrl)
-
-		if theDepth > 0 && len(theUrl) > 0 {
-			body, urls, err := fetcher.Fetch(theUrl)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Printf("found: %s %q\n", theUrl, body)
-			safePool.found[theUrl] = 1
-			for _, u := range urls {
-				safePool.pool[u] = theDepth - 1
-			}
-		}
-		safePool.mu.Unlock()
-
-	}
+	mu        sync.Mutex
+	processed map[string]int
 }
 
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
-func Crawl(url string, depth int, fetcher Fetcher) {
-	fmt.Println("Starting crawler")
-	// TODO: Fetch URLs in parallel.
-	// TODO: Don't fetch the same URL twice.
-	// This implementation doesn't do either:
-	// create a pool that will hold all the urls that need processing
-	safePool := SafePool{pool: make(map[string]int), found: make(map[string]int)}
-	safePool.pool[url] = depth
-	go worker(&safePool, fetcher)
-	go worker(&safePool, fetcher)
-	fmt.Scanln()
+func Crawl(url string, depth int, fetcher Fetcher, safePool *SafePool) {
+	// first check depth
+	if depth <= 0 { // if lower or equal to zero, send back nil
+		return
+	}
+	body, urls, err := fetcher.Fetch(url) // fetch the urls
+	if err != nil {                       // if there was an error
+		fmt.Println(err)                // print it out
+		safePool.processed[url] = depth // add the url to the processed list
+		return                          // we're done
+	}
+	fmt.Printf("found: %s %q\n", url, body) // no error, so print out the url
+	safePool.processed[url] = depth         // add it to the processed list
+
+	var wg sync.WaitGroup    // will use to wait for other goroutines to finish. if we don't use it, the program would only run the Crawl function once and exit
+	safePool.mu.Lock()       // lock the pool so there are no conflicts
+	for _, u := range urls { // process the urls
+		if safePool.processed[u] == 0 { // if we haven't processed the url yet
+			wg.Add(1)           // add a task
+			go func(u string) { // inline function takes an argument so that all goroutines don't share the same u
+				defer wg.Done()                      // when the crawl finishes, we're done
+				Crawl(u, depth-1, fetcher, safePool) // call Crawl recursively with one less level of depth
+			}(u)
+		}
+	}
+	safePool.mu.Unlock() // unlock before waiting, so other goroutines can make use of the pool
+	wg.Wait()            // wait for other routines to finish
 }
 
 func main() {
-	Crawl("https://golang.org/", 4, fetcher)
+	safePool := SafePool{processed: make(map[string]int)} // create a safepool for all goroutines to share
+	Crawl("https://golang.org/", 4, fetcher, &safePool)   // start the crawl
 }
 
 // fakeFetcher is Fetcher that returns canned results.
